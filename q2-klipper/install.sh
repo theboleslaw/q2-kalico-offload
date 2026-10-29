@@ -12,7 +12,7 @@
 #   ./install.sh check           check that every installed service answers
 #
 # Options:
-#   --printer <ip>               printer address (Q2-Mainline-Klipper discovers it; override only)
+#   --printer <ip>               printer address (discovered automatically; override only)
 #   --components <list>          comma list among: mainsail,spoolman (default: both)
 #   --channel <stable|latest>    updates offered by Moonraker: versions promoted as stable
 #                                (default), or every version that passes CI
@@ -83,7 +83,7 @@ cli_printer="${PRINTER_IP:-}"; cli_components="${COMPONENTS:-}"; cli_channel="${
 [ -n "$cli_components" ] && COMPONENTS="$cli_components"
 [ -n "$cli_channel" ] && UPDATE_CHANNEL="$cli_channel"
 
-Q2_ORIGIN="$(git -C "$Q2_ROOT" remote get-url origin 2>/dev/null || echo https://github.com/cedbossneo/q2-offload.git)"
+Q2_ORIGIN="$(git -C "$Q2_ROOT" remote get-url origin 2>/dev/null || echo https://github.com/theboleslaw/q2-kalico-offload.git)"
 Q2_GITHUB_REPO="$(echo "$Q2_ORIGIN" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
 BUILD_FIRMWARE="${BUILD_FIRMWARE:-0}"
 Q2_CI="${Q2_CI:-0}"

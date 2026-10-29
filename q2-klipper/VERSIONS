@@ -1,10 +1,12 @@
 # Pinned upstream versions. Sourced by install.sh, the build scripts and CI.
 # The "bump" workflow rewrites the *_REF / *_VERSION lines; keep one KEY=value per line.
 
-# Klipper (host + MCU firmware are always built from this exact tree + patches/klipper)
-KLIPPER_REPO=https://github.com/Klipper3d/klipper.git
-KLIPPER_BRANCH=master
-KLIPPER_REF=ee2c6fb6b00b2b5d097ef70d0868df7d74943b51
+# Klipper (host + MCU firmware are always built from this exact tree + patches/klipper).
+# Here "Klipper" is actually Kalico (KalicoCrew/kalico, bleeding-edge-v2): the Q2 patch
+# series in patches/klipper is written against it.
+KLIPPER_REPO=https://github.com/KalicoCrew/kalico.git
+KLIPPER_BRANCH=bleeding-edge-v2
+KLIPPER_REF=e0a57a0b55c65d8b9112c812a01bd32f88476618
 
 # Happy Hare (MMU software for the Qidi Box) + patches/happy-hare. Follows its GitHub
 # releases (its main branch moves with every merge): HAPPY_HARE_REF is the release's commit.
@@ -28,11 +30,6 @@ TIMELAPSE_REF=c7fff11e542b95e0e15b8bb1443cea8159ac0274
 MAINSAIL_CONFIG_REPO=https://github.com/mainsail-crew/mainsail-config.git
 MAINSAIL_CONFIG_BRANCH=master
 MAINSAIL_CONFIG_REF=ff3869a621db17ce3ef660adbbd3fa321995ac42
-
-# gcode_shell_command.py (KIAUH extension) used by the power-loss-recovery macros
-KIAUH_REPO=https://github.com/dw-0/kiauh.git
-KIAUH_BRANCH=master
-KIAUH_REF=d3e538de7b3163abe27fdf8116a60716d4db31ce
 
 # Arm GNU Toolchain: compiles the MCU firmware on the Klipper machine. The same compiler built
 # vendor/firmware, so both builds match. SHA-256 from Arm's published .sha256asc file.

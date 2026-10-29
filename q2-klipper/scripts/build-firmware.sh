@@ -10,6 +10,8 @@ mkdir -p "${2:?usage: $0 <klipper-dir> <out-dir>}"
 out="$(cd "$2" && pwd)"
 jobs="$(nproc 2>/dev/null || echo 2)"
 
+# Kalico embeds KALICO_BUILD_VERSION into the firmware's version string.
+export KALICO_BUILD_VERSION="q2-kalico-${KLIPPER_REF:0:9}"
 for mcu in main thr box; do
     info "Building ${mcu}"
     rm -rf "${kdir}/out"
@@ -36,5 +38,6 @@ check_offset box 0x8004000
     echo "FIRMWARE_ID=$(firmware_id)"
     echo "KLIPPER_REF=${KLIPPER_REF}"
     echo "KLIPPER_VERSION=$(git -C "$kdir" describe --tags --always --dirty)"
+    echo "KALICO_BUILD_VERSION=${KALICO_BUILD_VERSION}"
 } > "${out}/BUILD_INFO"
 cat "${out}/BUILD_INFO"

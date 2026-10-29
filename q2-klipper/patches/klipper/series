@@ -1,0 +1,23 @@
+# Q2 Kalico patch series (from n3oney/qidi-q2-klipper, nix/klipper/default.nix).
+# Format: <git-apply|patch> <file>
+# `patch` is used where the original patch was written for Klipper and needs fuzz.
+git-apply 0001-q2-gd32f425-usb.patch
+git-apply 0002-q2-cs1237.patch
+git-apply 0003-q2-multi-mcu-timeout.patch
+git-apply 0004-q2-gd32f303-spi2.patch
+git-apply 0005-q2-gd32f425-temperature.patch
+patch 0006a-q2-gd32f303-120mhz-non-kconfig.patch
+git-apply 0006-q2-gd32f303-120mhz-kconfig.patch
+patch 0007a-q2-gd32f425-200mhz-kconfig.patch
+git-apply 0007-q2-gd32f425-200mhz-stm32f4.patch
+git-apply 0008-build-version-override.patch
+git-apply 0009-load-cell-reduce-status-allocations.patch
+git-apply 0010-thr-uart-tx-buffer.patch
+git-apply 0011-webhooks-msgspec-json.patch
+git-apply 0013-compat-ignore-namespace-packages.patch
+git-apply 0014-manual-home-probe-position.patch
+git-apply 0012-motion-queuing-steppersync.patch
+git-apply 0012a-klipper-c49dbb5-motion-queuing.patch
+git-apply 0015-motion-queuing-disconnect-cleanup.patch
+git-apply 0016-toolhead-check-pause-yield.patch
+git-apply 0017-motion-queuing-drip-headroom.patch

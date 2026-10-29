@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Self-contained Qidi Q2 "mainline Klipper" installer.
+# Self-contained Qidi Q2 "Kalico" installer.
 #
 # Based on the upstream Qidi Q2 external-host project
 # (https://github.com/cedbossneo/q2-offload), vendored under ./q2-klipper:
@@ -167,7 +167,7 @@ detect_printer_address() {
 
 usage() {
     cat <<EOF
-Self-contained Qidi Q2 mainline-Klipper installer (host + MCU flash + camera).
+Self-contained Qidi Q2 Kalico installer (host + MCU flash + camera).
 
 Usage:
   ./install-klipper.sh [options]
@@ -362,8 +362,8 @@ check_bundle
 preflight
 
 # Upstream release coordinates: only for pinned firmware downloads and provenance.
-Q2_ORIGIN="https://github.com/cedbossneo/q2-offload.git"
-Q2_GITHUB_REPO="cedbossneo/q2-offload"
+Q2_ORIGIN="https://github.com/theboleslaw/q2-kalico-offload.git"
+Q2_GITHUB_REPO="theboleslaw/q2-kalico-offload"
 UPDATE_CHANNEL=stable
 MAINSAIL_PORT=80
 FIRMWARE_ID="${FIRMWARE_ID:-$(sed -n 's/^FIRMWARE_ID=//p' "${VENDOR_DIR}/firmware/BUILD_INFO")}"
@@ -423,7 +423,7 @@ banner() {
     fi
     cat <<EOF
 
-Q2 Klipper full install (self-contained bundle)
+Q2 Kalico full install (self-contained bundle)
   bundle        ${BUNDLE_DIR}
   upstream      ${Q2_UPSTREAM_TAG:-vendored} ${Q2_UPSTREAM_COMMIT:-}
   host user     ${USER} (${HOME})

@@ -1,9 +1,12 @@
-# Q2-Mainline-Klipper: Klipper installer for the Qidi Q2
+# Q2-Kalico-Offload: Klipper (Kalico) installer for the Qidi Q2
 
 This folder installs a complete Q2 Klipper stack for a Qidi Q2 + Qidi Box, without
-AutoPA, PrintGuard, Fluidd or HelixScreen. It is based on the [upstream project](https://github.com/cedbossneo/q2-offload):
+AutoPA, PrintGuard, Fluidd or HelixScreen. It is based on
+[Q2-Mainline-Klipper](https://github.com/theboleslaw/Q2-Mainline-Klipper), but the
+Klipper source is [Kalico](https://github.com/KalicoCrew/kalico) (bleeding-edge-v2)
+with the Q2 patch series from [n3oney/qidi-q2-klipper](https://github.com/n3oney/qidi-q2-klipper):
 
-- Klipper host stack: Klipper (Q2 patched), Moonraker, Happy Hare
+- Klipper host stack: Kalico (Q2 patched), Moonraker, Happy Hare
 - Mainsail web interface and Spoolman (selectable)
 - Printer-side serial proxies
 - MCU flashing for **mainboard**, **toolhead (THR)** and **Qidi Box (MMU)**
@@ -12,20 +15,21 @@ AutoPA, PrintGuard, Fluidd or HelixScreen. It is based on the [upstream project]
 Every path and host username is derived from the machine running the installer. Nothing
 is hardcoded and no network address is needed: the installer finds the printer by itself.
 
-The pinned Klipper is upstream `master` at `ee2c6fb` (`v0.13.0-816`, with the 8 Q2 patches on
-top, `v0.13.0-824`). Moonraker is `9e676eb`, and the Happy Hare release is `v4.1.0`. The firmware
-in `vendor/firmware` is built from exactly that tree with the Arm GNU Toolchain 15.3.Rel2. AutoPA
-and PrintGuard stay excluded here even though the reference host has them enabled.
+The pinned Kalico is `bleeding-edge-v2` at `e0a57a0b` (`v2026.07.00-49`, with the 17
+Q2 patches on top). Moonraker is `9e676eb`, and the Happy Hare release is `v4.1.0` plus
+the Q2-Mainline patches and 3 Kalico-specific Happy Hare patches. The firmware in
+`vendor/firmware` is built from exactly that tree with the Arm GNU Toolchain 15.3.Rel2.
+AutoPA and PrintGuard stay excluded here.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/theboleslaw/Q2-Mainline-Klipper.git Q2-Mainline
-cd Q2-Mainline
+git clone https://github.com/theboleslaw/q2-kalico-offload.git Q2-Kalico-Offload
+cd Q2-Kalico-Offload
 ./install-klipper.sh
 ```
 
-The first command creates the `Q2-Mainline` folder with the whole bundle in it.
+The first command creates the `Q2-Kalico-Offload` folder with the whole bundle in it.
 
 The installer reuses this bundle's saved choices from an earlier run. On a first run it
 finds the printer by itself and asks nothing about addresses.
@@ -37,7 +41,7 @@ and the three MCU flashes. **Read the flashing warning below first.**
 ./install-klipper.sh
 ```
 
-This installs Klipper, Moonraker, Happy Hare and Mainsail. Spoolman (inventory, runs in Docker)
+This installs Kalico, Moonraker, Happy Hare and Mainsail. Spoolman (inventory, runs in Docker)
 is optional: add it with `./install-klipper.sh --components mainsail,spoolman`.
 
 Other variants:
@@ -63,14 +67,15 @@ Other variants:
 | Path | Contents |
 |---|---|
 | `install-klipper.sh` | The installer and all orchestration |
-| `q2-klipper/` | Vendored Q2 Klipper source: host scripts, printer script, Klipper patches, configs, nginx/systemd units |
-| `vendor/firmware/` | Firmware `q2-main.bin`, `q2-thr.bin`, `q2-box.bin` for the pinned Klipper (`v0.13.0-824`), with matching `.dict` files, `SHA256SUMS`, `BUILD_INFO`; see [Firmware](#firmware) |
+| `q2-klipper/` | Vendored Q2 Klipper source: host scripts, printer script, Kalico patches, configs, nginx/systemd units |
+| `vendor/firmware/` | Firmware `q2-main.bin`, `q2-thr.bin`, `q2-box.bin` for the pinned Kalico (`e0a57a0b` + Q2 patches), with matching `.dict` files, `SHA256SUMS`, `BUILD_INFO`; see [Firmware](#firmware) |
 | `vendor/deployer/` | Pinned Katapult deployers for the first conversion: `mcu-deployer.bin`, `thr-deployer.bin`, `mmu-deployer.bin` |
 | `vendor/katapult/flashtool.py` | Pinned Katapult flashtool copied to the printer |
+| `vendor/n3oney/` | Upstream Nix build from n3oney/qidi-q2-klipper (provenance, not used by the installer) |
 | `BUNDLE_INFO` | Upstream commit, firmware ID and deployer build |
 
 The Q2-specific files and every flash artifact are local: the installer never downloads
-firmware, deployers or `flashtool.py`. The host software itself (Klipper, Moonraker, Happy
+firmware, deployers or `flashtool.py`. The host software itself (Kalico, Moonraker, Happy
 Hare, Mainsail, Spoolman image, timelapse, mainsail-config) is still fetched from the
 versions pinned in `q2-klipper/VERSIONS`; the host therefore needs internet access for
 those first-time downloads.
@@ -82,7 +87,7 @@ those first-time downloads.
 | `--components <list>` | `mainsail` (default) or `mainsail,spoolman`; Klipper, Moonraker and Happy Hare are always installed. AutoPA/PrintGuard rejected |
 | `--host-only` | Host only; no printer changes, no proxies, no flash, no camera setup |
 | `--no-flash` | Configure printer proxies/camera but skip the MCU flash |
-| `--flash-only` | Only flash the MCUs with the firmware in `vendor/firmware` and rebuild this host's Klipper to match; needs an earlier install; still asks you to type `FLASH` |
+| `--flash-only` | Only flash the MCUs with the firmware in `vendor/firmware` and rebuild this host's Kalico to match; needs an earlier install; still asks you to type `FLASH` |
 | `--skip-camera` | Do not enable/check the printer camera |
 | `--skip-calibration` | Do not offer PID/input-shaper calibration at the end |
 | `--build-firmware` | Build MCU firmware locally instead of using `vendor/firmware` |
@@ -94,15 +99,15 @@ those first-time downloads.
 ## Installation flow
 
 1. Verify the bundled firmware, deployers and flashtool checksums.
-2. Install host packages, Klipper, Moonraker, Happy Hare, the Mainsail web interface and Q2 configs.
+2. Install host packages, Kalico, Moonraker, Happy Hare, the Mainsail web interface and Q2 configs.
 3. Copy the printer script, flashtool and firmware to the printer.
 4. Back up the printer configuration.
 5. On the first conversion, flash the Katapult deployers through Qidi's own update
-   scripts, then flash Klipper on all three MCUs.
+   scripts, then flash Kalico on all three MCUs.
 6. Install the printer serial proxies and the sudo rule for `q2-printer.sh`.
 7. Enable and verify the stock camera services (`crowsnest`, `nginx`).
-8. Start Klipper/Moonraker on the host, apply UI defaults, optionally calibrate.
-9. Verify the serial bridges, Klipper, Moonraker, Mainsail, Spoolman and camera.
+8. Start Kalico/Moonraker on the host, apply UI defaults, optionally calibrate.
+9. Verify the serial bridges, Kalico, Moonraker, Mainsail, Spoolman and camera.
 
 At the end the installer prints the web addresses of this machine and the camera.
 Mainsail is on port 80 of the Klipper machine (open `http://localhost/` there).
@@ -152,7 +157,7 @@ Update the stack with the update script, or by re-running `install-klipper.sh`. 
 Two scripts, one for each side:
 
 - **Upstream check (this folder, or the repo that hosts it):**
-  `q2-klipper/scripts/update-upstream.sh` checks Klipper `master` and the latest Happy Hare
+  `q2-klipper/scripts/update-upstream.sh` checks Kalico `bleeding-edge-v2` and the latest Happy Hare
   release, then pins them in `q2-klipper/VERSIONS`. A newer version is only taken when all
   Q2 patches still apply to it; otherwise the old pin is kept and a warning says why.
   `--check` only reports, `--commit` commits, `--push` also pushes to the bundle's `origin`.
@@ -172,7 +177,7 @@ then the Klipper machine builds the matching firmware itself (about 10 minutes, 
 
 | Build | Klipper | Toolchain | Where it is used |
 |---|---|---|---|
-| `vendor/firmware` (shipped) | `ee2c6fb` + Q2 patches, `v0.13.0-824-gd0b0c87a` | Arm GNU Toolchain 15.3.Rel2 (GCC 15.3) | used when its firmware ID matches the pin; verified on the reference printer (mainboard, toolhead and Box all report `v0.13.0-824-gd0b0c87a`, Klipper ready) |
+| `vendor/firmware` (shipped) | `e0a57a0b` + Q2 patches, `q2-kalico-e0a57a0b5` | Arm GNU Toolchain 15.3.Rel2 (GCC 15.3) | used when its firmware ID matches the pin; built from the Kalico tree with the Q2 patch series |
 
 The installer compares the firmware ID before flashing. When they differ it warns, then
 builds the pinned firmware on the Klipper machine (or downloads a published release of the

@@ -1,0 +1,43 @@
+From 6a1bda1073eeb12ace26a2864832a2803ce84249 Mon Sep 17 00:00:00 2001
+From: Ahmed Sheikh <ahmed.ali.sheikh1998@gmail.com>
+Date: Tue, 28 Jul 2026 17:38:22 -0400
+Subject: [PATCH 7/7] stm32: add Q2 GD32F425 200 MHz support
+
+Use the vendor-defined 200 MHz PLL, high-LDO and high-drive sequence, and
+derive an exact 48 MHz USB clock from PLLSAI. Before the inherited STM32
+SystemInit resets a PLL left active by Katapult, stage down the AHB clock as
+recommended by the current GigaDevice startup code.
+
+---
+ src/stm32/Kconfig   |  11 ++++
+ src/stm32/stm32f4.c | 115 +++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 121 insertions(+), 5 deletions(-)
+
+diff --git a/src/stm32/Kconfig b/src/stm32/Kconfig
+index da1b47442..cc4b2b692 100644
+--- a/src/stm32/Kconfig
++++ b/src/stm32/Kconfig
+@@ -200,5 +200,6 @@ config CLOCK_FREQ
+ config CLOCK_FREQ
+     int
++    default 200000000 if STM32F4_GD32F425_200MHZ
+     default 48000000 if MACH_STM32F0
+     default 64000000 if MACH_STM32F103 && STM32_CLOCK_REF_INTERNAL
+     default 72000000 if MACH_STM32F103
+@@ -374,6 +375,16 @@ config CLOCK_REF_FREQ
+     default 1 if STM32_CLOCK_REF_INTERNAL
+     default 8000000
+
++config STM32F4_GD32F425_200MHZ
++    bool "Run the Q2 GD32F425 at 200 MHz" if LOW_LEVEL_OPTIONS
++    depends on MACH_GD32F425_Q2 && STM32_CLOCK_REF_8M
++    depends on STM32F4_GD32_USB_INIT_WORKAROUND
++    default n
++    help
++        Run the Qidi Q2 GD32F425 target from its 8 MHz crystal at
++        200 MHz. This enables the GD32 high-drive power mode and
++        supplies an exact 48 MHz USB/SDIO clock from PLLSAI.
++
+ config STM32F0_TRIM
+     int "Internal clock trim override" if LOW_LEVEL_OPTIONS && MACH_STM32F0 && STM32_CLOCK_REF_INTERNAL && !USBSERIAL
+     default 16

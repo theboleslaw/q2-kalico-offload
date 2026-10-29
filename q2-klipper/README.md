@@ -1,8 +1,9 @@
 # Vendored Q2 Klipper source
 
-This directory is the vendored [upstream source](https://github.com/cedbossneo/q2-offload)
-(commit `b5c8107`, tag `v2026.10.21-beta.1`, the release installed on the live
-reference host) bundled with Q2-Mainline-Klipper.
+This directory is the vendored Q2 Klipper source bundled with Q2-Kalico-Offload.
+The host Klipper is Kalico (KalicoCrew/kalico, `bleeding-edge-v2` at
+`e0a57a0b55c65d8b9112c812a01bd32f88476618`) plus the Q2 patch series in
+`patches/klipper/` (from n3oney/qidi-q2-klipper).
 
 Use the installer in the parent directory:
 
@@ -10,15 +11,12 @@ Use the installer in the parent directory:
 cd .. && ./install-klipper.sh
 ```
 
-Local changes relative to upstream:
+Local changes relative to the upstream Q2-Mainline bundle:
 
-- AutoPA and PrintGuard were removed from the install/config/nginx paths.
-- The upstream Moonraker self-updater and service were removed.
+- Klipper source is Kalico instead of upstream Klipper.
+- The `gcode_shell_command` extension is not fetched (Kalico ships it).
 - Firmware and Katapult deployers are read from `../vendor/` instead of being downloaded.
-- The printer script derives the printer user's home from its own location; it is not
-  hardcoded to `/home/mks`.
-- The printer script has `camera-enable` / `camera-status` for the stock
-  `crowsnest` + `nginx` camera.
+- The printer script derives the printer user's home from its own location.
 
 The top-level [`../README.md`](../README.md) is the authoritative documentation for this
 bundle. Upstream docs under `docs/` are kept for recovery and calibration reference.

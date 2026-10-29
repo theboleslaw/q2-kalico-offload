@@ -1,0 +1,134 @@
+{
+  "nodes": {
+    "happy-hare": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791130295,
+        "narHash": "sha256-70Rm7m0Z1qI496A+6LOW4v47XwirH6PVqOL1Zbpv63M=",
+        "owner": "moggieuk",
+        "repo": "Happy-Hare",
+        "rev": "c66216b7acfa34403a66f5e6677ccf1924f635f8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "moggieuk",
+        "ref": "main",
+        "repo": "Happy-Hare",
+        "type": "github"
+      }
+    },
+    "kalico-bleeding-edge": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781881508,
+        "narHash": "sha256-l0p/IjzcPTtLH0IJI0fepYO5l34g1D2NVcF+E3T1nLY=",
+        "owner": "KalicoCrew",
+        "repo": "kalico",
+        "rev": "e0a57a0b55c65d8b9112c812a01bd32f88476618",
+        "type": "github"
+      },
+      "original": {
+        "owner": "KalicoCrew",
+        "ref": "bleeding-edge-v2",
+        "repo": "kalico",
+        "type": "github"
+      }
+    },
+    "katapult": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774007749,
+        "narHash": "sha256-iQ/z1qWWopb6wG1lHLL/nxrSCBmcdW20k66rpAYpN6Y=",
+        "owner": "Arksine",
+        "repo": "Katapult",
+        "rev": "ec59b9bb9ad6c2ec8d4dc6831fbc77f0b308e29e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Arksine",
+        "repo": "Katapult",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1785090369,
+        "narHash": "sha256-m0pDuRJG7EDo9ri+4Ksu83VsI+PlxNC9lNBfydejce4=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "624af665418d3c65d544145b4d34ad696439570e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "rockchip-kernel": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782730555,
+        "narHash": "sha256-scwFaSX+ymkEBfViPsA+UV/ii1Z69SYJC421iwE4IFU=",
+        "owner": "rockchip-linux",
+        "repo": "kernel",
+        "rev": "470f9dccbdc42e7b8a824d0a5c5640a10e9457d2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rockchip-linux",
+        "ref": "develop-6.12",
+        "repo": "kernel",
+        "type": "github"
+      }
+    },
+    "rockchip-uboot": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1766458892,
+        "narHash": "sha256-OlJD80LFarOPoGLOVHs0cQFX8wJSTcYfugxsF5xIllk=",
+        "owner": "rockchip-linux",
+        "repo": "u-boot",
+        "rev": "aeec6f2bfd5ce0cfcdfe0ffc7f84d9d143683856",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rockchip-linux",
+        "ref": "next-dev",
+        "repo": "u-boot",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "happy-hare": "happy-hare",
+        "kalico-bleeding-edge": "kalico-bleeding-edge",
+        "katapult": "katapult",
+        "nixpkgs": "nixpkgs",
+        "rockchip-kernel": "rockchip-kernel",
+        "rockchip-uboot": "rockchip-uboot",
+        "rtl8189fs": "rtl8189fs"
+      }
+    },
+    "rtl8189fs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1784035724,
+        "narHash": "sha256-rPVQKbo/S03WSoYk1ZFeF0KAbN9DnUnLLPA1mdyKSfg=",
+        "owner": "jwrdegoede",
+        "repo": "rtl8189ES_linux",
+        "rev": "63900adf1633d31d56af28ac4c535b618e7a5927",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jwrdegoede",
+        "ref": "rtl8189fs",
+        "repo": "rtl8189ES_linux",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

@@ -16,7 +16,7 @@ set_var() {
     echo "${key}: ${old} -> ${new}"
 }
 
-for name in KLIPPER MOONRAKER KATAPULT TIMELAPSE MAINSAIL_CONFIG KIAUH; do
+for name in KLIPPER MOONRAKER KATAPULT TIMELAPSE MAINSAIL_CONFIG; do
     repo_var="${name}_REPO"; branch_var="${name}_BRANCH"
     sha="$(git ls-remote "${!repo_var}" "refs/heads/${!branch_var}" | cut -f1)"
     set_var "${name}_REF" "$sha"

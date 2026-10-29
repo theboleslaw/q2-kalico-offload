@@ -56,39 +56,96 @@ checkout_ref() {
 
 # apply_patches <git-dir> <patch-dir> <branch>: build <branch> = HEAD + every patch.
 # A patch that no longer applies but reverse-applies is already upstream: skipped.
+# If <patch-dir>/series exists, it drives the order and the application method
+# (git-apply vs. patch -p1, for patches that need fuzz); otherwise *.patch in
+# lexical order are applied with git-apply.
 apply_patches() {
-    local dir="$1" pdir="$2" branch="$3" p name
+    local dir="$1" pdir="$2" branch="$3" p name method
     git -C "$dir" checkout --quiet -B "$branch"
-    for p in "$pdir"/*.patch; do
-        [ -e "$p" ] || continue
-        name="$(basename "$p")"
-        if git -C "$dir" apply --check "$p" 2>/dev/null; then
-            if head -1 "$p" | grep -q '^From '; then
-                git -C "$dir" -c user.name=q2-klipper -c user.email=q2-klipper@users.noreply.github.com \
-                    am --quiet --committer-date-is-author-date "$p"
-            else
-                git -C "$dir" apply "$p"
-                git -C "$dir" add -A
-                git -C "$dir" -c user.name=q2-klipper -c user.email=q2-klipper@users.noreply.github.com \
-                    commit --quiet -m "q2-klipper: ${name%.patch}"
-            fi
+    if [ -f "${pdir}/series" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            # strip comments and blanks
+            line="${line%%#*}"
+            [ -z "$(printf '%s' "$line" | tr -d '[:space:]')" ] && continue
+            method="$(printf '%s' "$line" | awk '{print $1}')"
+            name="$(printf '%s' "$line" | awk '{print $2}')"
+            [ -n "$name" ] || die "malformed series line: ${line}"
+            p="${pdir}/${name}"
+            [ -e "$p" ] || die "missing patch ${p}"
+            apply_one_patch "$dir" "$p" "$name" "$method"
+        done < "${pdir}/series"
+    else
+        for p in "${pdir}"/*.patch; do
+            [ -e "$p" ] || continue
+            name="$(basename "$p")"
+            apply_one_patch "$dir" "$p" "$name" git-apply
+        done
+    fi
+}
+
+# Apply a single patch; commit it on success. <method> is git-apply or patch.
+apply_one_patch() {
+    local dir="$1" p="$2" name="$3" method="$4"
+    local short="${name%.patch}"
+    if [ "$method" = patch ]; then
+        if patch -p1 -R --dry-run -f -s --no-backup-if-mismatch -d "$dir" < "$p" >/dev/null 2>&1; then
+            ok "patch ${name} (already applied, skipped)"
+            return 0
+        fi
+        if patch -p1 --forward --batch --no-backup-if-mismatch -d "$dir" < "$p" >/dev/null 2>&1; then
+            git -C "$dir" add -A
+            git -C "$dir" -c user.name=q2-klipper -c user.email=q2-klipper@users.noreply.github.com \
+                commit --quiet -m "q2-klipper: ${short}"
             ok "patch ${name}"
-        elif git -C "$dir" apply --reverse --check "$p" 2>/dev/null; then
-            ok "patch ${name} (already upstream, skipped)"
+            return 0
         else
             die "patch ${name} does not apply to $(git -C "$dir" rev-parse --short HEAD)"
         fi
-    done
+    fi
+    if git -C "$dir" apply --check "$p" 2>/dev/null; then
+        if head -1 "$p" | grep -q '^From '; then
+            git -C "$dir" -c user.name=q2-klipper -c user.email=q2-klipper@users.noreply.github.com \
+                am --quiet --committer-date-is-author-date "$p"
+        else
+            git -C "$dir" apply "$p"
+            git -C "$dir" add -A
+            git -C "$dir" -c user.name=q2-klipper -c user.email=q2-klipper@users.noreply.github.com \
+                commit --quiet -m "q2-klipper: ${short}"
+        fi
+        ok "patch ${name}"
+    elif git -C "$dir" apply --reverse --check "$p" 2>/dev/null; then
+        ok "patch ${name} (already upstream, skipped)"
+    else
+        die "patch ${name} does not apply to $(git -C "$dir" rev-parse --short HEAD)"
+    fi
 }
 
 # Identifier of a firmware build: Klipper ref + hash of the build configs and of the patches
 # that reach the MCU build. A host-only patch (klippy/ only) must not ask users to reflash.
+# When a series manifest is present, only the listed patches are considered.
 firmware_id() {
-    local sum p fw_patches=()
-    for p in "${Q2_ROOT}"/patches/klipper/*.patch; do
-        grep '^diff --git a/' "$p" | grep -qv '^diff --git a/klippy/' && fw_patches+=("$p")
-    done
-    sum="$(cat "${fw_patches[@]}" "${Q2_ROOT}"/firmware/configs/*.config \
-        | sha256sum | cut -c1-8)"
+    local sum p fw_patches=() series="${Q2_ROOT}/patches/klipper/series"
+    if [ -f "$series" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%%#*}"
+            [ -z "$(printf '%s' "$line" | tr -d '[:space:]')" ] && continue
+            p="${Q2_ROOT}/patches/klipper/$(printf '%s' "$line" | awk '{print $2}')"
+            [ -e "$p" ] || continue
+            if grep -Eq '^diff --git a/(src|scripts)/' "$p"; then
+                fw_patches+=("$p")
+            fi
+        done < "$series"
+    else
+        for p in "${Q2_ROOT}"/patches/klipper/*.patch; do
+            [ -e "$p" ] || continue
+            grep -Eq '^diff --git a/(src|scripts)/' "$p" && fw_patches+=("$p")
+        done
+    fi
+    if [ "${#fw_patches[@]}" -eq 0 ]; then
+        sum="$(cat "${Q2_ROOT}"/firmware/configs/*.config | sha256sum | cut -c1-8)"
+    else
+        sum="$(cat "${fw_patches[@]}" "${Q2_ROOT}"/firmware/configs/*.config \
+            | sha256sum | cut -c1-8)"
+    fi
     printf '%s-%s\n' "${KLIPPER_REF:0:9}" "$sum"
 }

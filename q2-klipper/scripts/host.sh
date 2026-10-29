@@ -145,11 +145,10 @@ host_extensions() {
     ln -sfn "${HOME}/moonraker-timelapse/component/timelapse.py" "${HOME}/moonraker/moonraker/components/timelapse.py"
     ln -sfn "${HOME}/moonraker-timelapse/klipper_macro/timelapse.cfg" "${CFG}/timelapse.cfg"
     ln -sfn "${HOME}/mainsail-config/mainsail.cfg" "${CFG}/mainsail.cfg"
-    tmp="$(mktemp)"
-    curl -fsSL "https://raw.githubusercontent.com/dw-0/kiauh/${KIAUH_REF}/kiauh/extensions/gcode_shell_cmd/assets/gcode_shell_command.py" -o "$tmp"
-    install -m 644 "$tmp" "${HOME}/klipper/klippy/extras/gcode_shell_command.py"
-    rm -f "$tmp"
-    ok "timelapse, mainsail-config, gcode_shell_command"
+    # Kalico already ships klippy/extras/gcode_shell_command.py; nothing to fetch here
+    [ -s "${HOME}/klipper/klippy/extras/gcode_shell_command.py" ] \
+        || die "Kalico is missing klippy/extras/gcode_shell_command.py"
+    ok "timelapse, mainsail-config, gcode_shell_command (Kalico built-in)"
 }
 
 host_moonraker() {

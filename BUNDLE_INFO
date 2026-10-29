@@ -1,6 +1,6 @@
-BUNDLE_NAME="Q2-Mainline-Klipper Q2 Klipper bundle"
-# Pinned to the upstream release installed on the live reference host.
-Q2_UPSTREAM_COMMIT=b5c8107ce8281205e2f6e621132e0a723709b3dd
-Q2_UPSTREAM_TAG=v2026.10.21-beta.1
-FIRMWARE_ID=ee2c6fb6b-8c0b4bda
+BUNDLE_NAME="Q2-Kalico-Offload Q2 Kalico bundle"
+# Based on theboleslaw/Q2-Mainline-Klipper; Klipper source is Kalico bleeding-edge-v2.
+Q2_UPSTREAM_COMMIT=e0a57a0b55c65d8b9112c812a01bd32f88476618
+Q2_UPSTREAM_TAG=bleeding-edge-v2
+FIRMWARE_ID=e0a57a0b5-e4acb12c
 DEPLOYER_BUILD=build-4d40dca6b5ebdbd3e11b06782e2a48ead9b6e1fc

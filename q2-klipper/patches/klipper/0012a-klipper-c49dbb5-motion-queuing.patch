@@ -1,0 +1,32 @@
+From c49dbb5a879df16ebf3014ef0901eb9dd61e6225 Mon Sep 17 00:00:00 2001
+From: Kevin O'Connor <kevin@koconnor.net>
+Date: Sat, 4 Oct 2025 19:35:41 -0400
+Subject: [PATCH] trapq: Fix bug that broke numerical stability workaround for
+ initial movement
+
+Commit b60804bb changed the trapq head sentinel to store
+print_time=-1.  However, it failed to update trapq_add_move() that
+relied on that value to detect the head sentinel.  As a result,
+numerical stability issues could lead to stepcompress errors.
+
+Fix by changing trapq_add_move() to detect the head sentinel even with
+a negative print_time.
+
+Signed-off-by: Kevin O'Connor <kevin@koconnor.net>
+---
+ klippy/chelper/trapq.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/klippy/chelper/trapq.c b/klippy/chelper/trapq.c
+index a21969414e97..c238a38183e3 100644
+--- a/klippy/chelper/trapq.c
++++ b/klippy/chelper/trapq.c
+@@ -104,7 +104,7 @@ trapq_add_move(struct trapq *tq, struct move *m)
+         // Add a null move to fill time gap
+         struct move *null_move = move_alloc();
+         null_move->start_pos = m->start_pos;
+-        if (!prev->print_time && m->print_time > MAX_NULL_MOVE)
++        if (prev->print_time <= 0. && m->print_time > MAX_NULL_MOVE)
+             // Limit the first null move to improve numerical stability
+             null_move->print_time = m->print_time - MAX_NULL_MOVE;
+         else

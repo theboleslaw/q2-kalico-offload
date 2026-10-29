@@ -1,17 +1,8 @@
-From 6d7821f23f492fcde2299aeb36e92a1032d66b89 Mon Sep 17 00:00:00 2001
-From: n3oney <neo@neoney.dev>
-Date: Sun, 9 Aug 2026 00:13:20 +0200
-Subject: [PATCH] feat: patch klippy to not allocate and throw away 640 rich
- load-cell records per second when they're not needed
-
----
- klippy/extras/load_cell/load_cell.py | 93 +++++++++++++++++++++++++++++++-----
- 1 file changed, 83 insertions(+), 10 deletions(-)
-
 diff --git a/klippy/extras/load_cell/load_cell.py b/klippy/extras/load_cell/load_cell.py
+index cdadf94a60..e85da614d8 100644
 --- a/klippy/extras/load_cell/load_cell.py
 +++ b/klippy/extras/load_cell/load_cell.py
-@@ -479,43 +479,52 @@ class LoadCell:
+@@ -479,43 +479,52 @@
  
      def _handle_ready(self):
          self.sensor.add_client(self._sensor_data_event)
@@ -71,8 +62,7 @@ diff --git a/klippy/extras/load_cell/load_cell.py b/klippy/extras/load_cell/load
 +            sample = [row[0], force, sum_counts, self.tare_counts]
 +            if channel_counts is not None:
                  for counts in channel_counts:
--                    sample.append(self.counts_to_grams(counts))
-+                    sample.append(self.counts_to_grams(counts))
+                     sample.append(self.counts_to_grams(counts))
                      sample.append(counts)
              samples.append(sample)
 -        msg = {"data": samples, "errors": errors, "overflows": overflows}
@@ -84,7 +74,7 @@ diff --git a/klippy/extras/load_cell/load_cell.py b/klippy/extras/load_cell/load
          return True
  
      # get internal events of force data
-@@ -599,16 +608,6 @@ class LoadCell:
+@@ -599,16 +608,6 @@
                      )
          return avg(select_column(samples, 2))
  
