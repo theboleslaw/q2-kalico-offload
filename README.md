@@ -72,6 +72,7 @@ Other variants:
 | `vendor/deployer/` | Pinned Katapult deployers for the first conversion: `mcu-deployer.bin`, `thr-deployer.bin`, `mmu-deployer.bin` |
 | `vendor/katapult/flashtool.py` | Pinned Katapult flashtool copied to the printer |
 | `vendor/n3oney/` | Upstream Nix build from n3oney/qidi-q2-klipper (provenance, not used by the installer) |
+| `q2-klipper/config/helixscreen/` | HelixScreen settings template (dim/sleep-until-touch, dark mode, touch calibration) |
 | `BUNDLE_INFO` | Upstream commit, firmware ID and deployer build |
 
 The Q2-specific files and every flash artifact are local: the installer never downloads
@@ -141,12 +142,31 @@ deployers and only asks whether to flash the firmware now. It still asks you to 
 Recovery notes: `q2-klipper/docs/recovery.md`.
 Calibration notes: `q2-klipper/docs/calibration.md`.
 
+## HelixScreen (touchscreen UI)
+
+The bundle ships the HelixScreen integration macros (`helix_macros.cfg`, included in
+`printer.cfg`) and a settings template at `q2-klipper/config/helixscreen/settings.json`
+(dim/sleep after 120 s, dark mode, touch calibration, Asia/Manila timezone). The
+HelixScreen app itself is installed separately on the printer's touchscreen:
+
+```bash
+# on the printer SBC / touchscreen (example for a K1-class device)
+curl -fsSL https://github.com/prestonbrown/helixscreen/releases/latest/download/install.sh | bash
+# then copy the template over your settings:
+cp q2-klipper/config/helixscreen/settings.json ~/printer_data/config/helixscreen/settings.json
+```
+
+The macros are already wired into `PRINT_START`/`PRINT_END`/cancel via `gcode_macro_mmu.cfg`,
+so once HelixScreen is installed it integrates automatically. The version pin lives in
+`q2-klipper/VERSIONS` (`HELIXSCREEN_RELEASE`) and is checked by the daily
+`update-upstream.yml` workflow.
+
 ## What is not installed
 
 - AutoPA
 - PrintGuard
 - Fluidd: Mainsail covers the same role, so only one web interface is installed
-- HelixScreen (the printer touchscreen app)
+- HelixScreen (the printer touchscreen app itself — install separately from prestonbrown/helixscreen; the bundle ships the integration macros in `helix_macros.cfg` and a settings template in `q2-klipper/config/helixscreen/settings.json`)
 - The upstream Moonraker self-updater (it could run printer-touching steps)
 
 Update the stack with the update script, or by re-running `install-klipper.sh`. Host units installed are

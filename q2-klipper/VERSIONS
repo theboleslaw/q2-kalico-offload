@@ -40,6 +40,12 @@ ARM_TOOLCHAIN_SHA256=463df9665c246fa13bab2102115bbf83440661b6eb70b44f3dfd4712ca3
 MAINSAIL_VERSION=v2.19.0
 SPOOLMAN_VERSION=v0.27.0
 
+# HelixScreen (printer touchscreen UI). Installed on the printer, not the host;
+# the macros in config/klipper/helix_macros.cfg integrate with it.
+HELIXSCREEN_REPO=https://github.com/prestonbrown/helixscreen.git
+HELIXSCREEN_RELEASE=v1.0.7
+HELIXSCREEN_REF=faed4e35010e970ba5612e9b2e109c52a11965a6
+
 # First-time Katapult install without an ST-Link (n3oney/qidi-q2-klipper deployers,
 # flashed through Qidi's own update scripts). Pinned on purpose: never auto-bumped.
 DEPLOYER_URL=https://github.com/n3oney/qidi-q2-klipper/releases/download/build-4d40dca6b5ebdbd3e11b06782e2a48ead9b6e1fc/katapult-deployer.tar.gz

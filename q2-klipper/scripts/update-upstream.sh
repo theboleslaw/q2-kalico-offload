@@ -78,6 +78,17 @@ else
     fi
 fi
 
+info "HelixScreen: checking the latest release"
+hs_tag="$(latest_release prestonbrown/helixscreen)"
+if [ "$hs_tag" = "$HELIXSCREEN_RELEASE" ]; then
+    ok "HelixScreen ${HELIXSCREEN_RELEASE} is current"
+else
+    hs_commit="$(tag_commit "$HELIXSCREEN_REPO" "$hs_tag")"
+    set_var HELIXSCREEN_RELEASE "$hs_tag"
+    set_var HELIXSCREEN_REF "$hs_commit"
+    warn "HelixScreen changed: ${HELIXSCREEN_RELEASE} -> ${hs_tag}"
+fi
+
 [ "$mode" = --commit ] || [ "$mode" = --push ] || exit 0
 
 git -C "$bundle" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
