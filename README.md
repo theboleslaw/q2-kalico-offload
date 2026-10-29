@@ -72,7 +72,8 @@ Other variants:
 | `vendor/deployer/` | Pinned Katapult deployers for the first conversion: `mcu-deployer.bin`, `thr-deployer.bin`, `mmu-deployer.bin` |
 | `vendor/katapult/flashtool.py` | Pinned Katapult flashtool copied to the printer |
 | `vendor/n3oney/` | Upstream Nix build from n3oney/qidi-q2-klipper (provenance, not used by the installer) |
-| `q2-klipper/config/helixscreen/` | HelixScreen settings template (dim/sleep-until-touch, dark mode, touch calibration) |
+| `q2-klipper/config/helixscreen/` | HelixScreen settings template (dim/sleep-until-touch, dark mode, touch calibration, humidity widget adjusted) |
+| `q2-klipper/web/theme/` | Catppuccin Mocha custom CSS theme for Mainsail |
 | `BUNDLE_INFO` | Upstream commit, firmware ID and deployer build |
 
 The Q2-specific files and every flash artifact are local: the installer never downloads
@@ -141,6 +142,11 @@ deployers and only asks whether to flash the firmware now. It still asks you to 
 
 Recovery notes: `q2-klipper/docs/recovery.md`.
 Calibration notes: `q2-klipper/docs/calibration.md`.
+
+## Mainsail theme
+
+A Catppuccin Mocha custom CSS theme is included at `q2-klipper/web/theme/catppuccin-mocha.css`.
+To apply it in Mainsail: Settings → Appearance → Custom CSS → paste the file contents.
 
 ## HelixScreen (touchscreen UI)
 
