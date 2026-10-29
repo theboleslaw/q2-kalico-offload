@@ -322,8 +322,19 @@ host_web() {
 host_nginx() {
     has mainsail || return 0
     in_ci && return 0
-    local tmp
+    local tmp site
     tmp="$(mktemp)"
+    # A previous cedbossneo/q2-offload (or other) install may have left a site
+    # that also declares `default_server` on :80, which makes nginx refuse to
+    # start. Drop any enabled site that is not ours and that carries default_server.
+    for site in /etc/nginx/sites-enabled/*; do
+        [ -e "$site" ] || continue
+        [ "$(basename "$site")" = "q2-klipper" ] && continue
+        if grep -q 'listen .*default_server' "$site" 2>/dev/null; then
+            warn "removing conflicting nginx site $(basename "$site") (default_server on :80)"
+            sudo rm -f "$site"
+        fi
+    done
     render "${Q2_ROOT}/host/nginx/q2-klipper.conf" > "$tmp"
     sudo install -m 644 "$tmp" /etc/nginx/sites-available/q2-klipper
     render "${Q2_ROOT}/host/nginx/q2-klipper-common.conf" > "$tmp"
