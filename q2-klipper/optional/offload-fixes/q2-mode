@@ -1,0 +1,522 @@
+#!/bin/bash
+# Q2 boot-time local/offload selector.
+# Runs once at boot.  No runtime mode switching.
+set -u
+
+CONF=/etc/q2-mode.conf
+STATE=/run/q2-mode.state
+LAST_STATE=/run/q2-mode.offload-last
+SETTINGS=/home/mks/printer_data/config/helixscreen/settings.json
+TAG=q2-mode
+
+MODE=auto
+OFFLOAD_HOST=192.168.2.220
+OFFLOAD_PORT=7125
+PROBE_ATTEMPTS=10
+PROBE_DELAY=3
+
+if [ -r "$CONF" ]; then
+    . "$CONF"
+fi
+case "${MODE:-auto}" in auto|offload|local) ;; *) MODE=auto ;; esac
+case "${PROBE_ATTEMPTS:-10}" in ''|*[!0-9]*) PROBE_ATTEMPTS=10 ;; esac
+case "${PROBE_DELAY:-3}" in ''|*[!0-9]*) PROBE_DELAY=3 ;; esac
+: "${OFFLOAD_HOST:=192.168.2.220}"
+: "${OFFLOAD_PORT:=7125}"
+
+OFFLOAD_REACHABLE=0
+OFFLOAD_KLIPPY=unknown
+OFFLOAD_PRINT=unknown
+OFFLOAD_BUSY=0
+LAST_PROBE=unreachable
+
+log() {
+    printf '%s\n' "$*" >&2
+    if command -v logger >/dev/null 2>&1; then
+        logger -t "$TAG" -- "$*" 2>/dev/null || true
+    fi
+}
+
+get_klippy_state() {
+    local body
+    body=$(curl -fsS --max-time 3 "http://${OFFLOAD_HOST}:${OFFLOAD_PORT}/server/info" 2>/dev/null) || { printf ''; return 0; }
+    printf '%s' "$body" | /usr/bin/python3 -c 'import sys,json
+try:
+    print(json.load(sys.stdin).get("result",{}).get("klippy_state",""))
+except Exception:
+    print("")' 2>/dev/null
+}
+
+get_print_state() {
+    local body
+    body=$(curl -fsS --max-time 3 "http://${OFFLOAD_HOST}:${OFFLOAD_PORT}/printer/objects/query?print_stats=state" 2>/dev/null) || { printf ''; return 0; }
+    printf '%s' "$body" | /usr/bin/python3 -c 'import sys,json
+try:
+    print(json.load(sys.stdin).get("result",{}).get("status",{}).get("print_stats",{}).get("state",""))
+except Exception:
+    print("")' 2>/dev/null
+}
+
+probe_once() {
+    local body
+    body=$(curl -fsS --max-time 3 "http://${OFFLOAD_HOST}:${OFFLOAD_PORT}/server/info" 2>/dev/null) || return 1
+    OFFLOAD_REACHABLE=1
+    OFFLOAD_KLIPPY=$(printf '%s' "$body" | /usr/bin/python3 -c 'import sys,json
+try:
+    print(json.load(sys.stdin).get("result",{}).get("klippy_state",""))
+except Exception:
+    print("")' 2>/dev/null)
+    OFFLOAD_KLIPPY=${OFFLOAD_KLIPPY:-unknown}
+    OFFLOAD_PRINT=$(get_print_state)
+    OFFLOAD_PRINT=${OFFLOAD_PRINT:-unknown}
+    OFFLOAD_BUSY=0
+    case "$OFFLOAD_PRINT" in
+        printing|paused) OFFLOAD_BUSY=1 ;;
+    esac
+    LAST_PROBE=$OFFLOAD_KLIPPY
+    return 0
+}
+
+probe_offload_host() {
+    local i=1
+    OFFLOAD_REACHABLE=0
+    OFFLOAD_KLIPPY=unknown
+    OFFLOAD_PRINT=unknown
+    OFFLOAD_BUSY=0
+    while [ "$i" -le "$PROBE_ATTEMPTS" ]; do
+        if probe_once; then
+            return 0
+        fi
+        LAST_PROBE=unreachable
+        sleep "$PROBE_DELAY"
+        i=$((i + 1))
+    done
+    return 1
+}
+
+wait_ready() {
+    local i=0
+    while [ "$i" -lt "$1" ]; do
+        if [ "$(get_klippy_state)" = ready ]; then
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+wait_bridge_links() {
+    # .220's socat bridges recreate their PTYs on every reconnect.  Restarting
+    # Klipper before all three links are established leaves it holding a dead
+    # PTY ("device reports readiness to read but returned no data").
+    local i=0 p ok
+    while [ "$i" -lt "${1:-30}" ]; do
+        ok=1
+        for p in 7001 7002 7003; do
+            ss -tn 2>/dev/null | awk -v port=":$p" '$1 == "ESTAB" && $4 ~ port "$" && $5 ~ /^192\.168\.2\.220:/ {f=1} END {exit !f}' || ok=0
+        done
+        [ "$ok" = 1 ] && return 0
+        sleep 1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+restart_offload_klipper() {
+    # Prefer a firmware restart: it sends a restart command to each MCU, which
+    # also clears an MCU left in firmware shutdown by a broken link, and then
+    # reloads the config.  Fall back to a service restart if Moonraker refuses.
+    if curl -fsS --max-time 15 -X POST "http://${OFFLOAD_HOST}:${OFFLOAD_PORT}/printer/firmware_restart" >/dev/null 2>&1; then
+        log ".220 firmware restart requested"
+        return 0
+    fi
+    if curl -fsS --max-time 10 -X POST "http://${OFFLOAD_HOST}:${OFFLOAD_PORT}/machine/services/restart?service=klipper" >/dev/null 2>&1; then
+        log ".220 Klipper service restart requested"
+        return 0
+    fi
+    log ".220 Klipper restart request failed"
+    return 1
+}
+
+set_helix_host() {
+    local host="$1"
+    if [ ! -f "$SETTINGS" ]; then
+        log "missing HelixScreen settings: $SETTINGS"
+        return 1
+    fi
+    if [ ! -f "${SETTINGS}.q2-mode.bak" ]; then
+        cp -a "$SETTINGS" "${SETTINGS}.q2-mode.bak" 2>/dev/null || true
+    fi
+    /usr/bin/python3 - "$SETTINGS" "$host" 7125 <<'PY'
+import json, os, sys, tempfile
+path, host, port = sys.argv[1], sys.argv[2], int(sys.argv[3])
+with open(path, encoding='utf-8') as fh:
+    data = json.load(fh)
+printers = data.setdefault('printers', {})
+printer = printers.setdefault('default', {})
+printer['moonraker_host'] = host
+printer['moonraker_port'] = port
+fd, tmp = tempfile.mkstemp(prefix='.settings.', dir=os.path.dirname(path), text=True)
+try:
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.write('\n')
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, path)
+except Exception:
+    try:
+        os.unlink(tmp)
+    except Exception:
+        pass
+    raise
+PY
+    chown mks:netdev "$SETTINGS" 2>/dev/null || true
+    log "HelixScreen Moonraker host set to $host"
+}
+
+stop_helix() {
+    systemctl stop helixscreen-update.path helixscreen-update.service 2>/dev/null || true
+    systemctl stop helixscreen 2>/dev/null || true
+}
+
+stop_local() {
+    systemctl stop q2-local-moonraker q2-local-klipper 2>/dev/null || true
+}
+
+stop_proxies() {
+    systemctl stop q2-serial-proxy@main q2-serial-proxy@thr q2-serial-proxy@mmu 2>/dev/null || true
+}
+
+start_proxies() {
+    local i
+    systemctl reset-failed q2-serial-proxy@main q2-serial-proxy@thr q2-serial-proxy@mmu 2>/dev/null || true
+    sleep 2
+    for i in 1 2 3 4 5; do
+        systemctl start q2-serial-proxy@main q2-serial-proxy@thr q2-serial-proxy@mmu 2>/dev/null || true
+        if systemctl is-active --quiet q2-serial-proxy@main &&            systemctl is-active --quiet q2-serial-proxy@thr &&            systemctl is-active --quiet q2-serial-proxy@mmu; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+wait_local_http() {
+    local i=0
+    while [ "$i" -lt 20 ]; do
+        if curl -fsS --max-time 1 "http://127.0.0.1:7125/server/info" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+write_state() {
+    local selected="$1" host="$2"
+    {
+        printf 'selected_mode=%s\n' "$selected"
+        printf 'helix_host=%s\n' "$host"
+        printf 'timestamp=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')"
+    } > "$STATE"
+}
+
+
+write_offload_cache() {
+    local klippy print now ts tmp
+    klippy=$(get_klippy_state)
+    if [ -z "$klippy" ]; then
+        return 1
+    fi
+    print=$(get_print_state)
+    print=${print:-unknown}
+    now=$(date +%s)
+    ts=$(date '+%Y-%m-%dT%H:%M:%S%z')
+    tmp=$(mktemp /run/q2-mode.offload-last.XXXXXX) || return 1
+    {
+        printf 'klippy=%s\n' "$klippy"
+        printf 'print=%s\n' "$print"
+        printf 'epoch=%s\n' "$now"
+        printf 'timestamp=%s\n' "$ts"
+    } > "$tmp" || { rm -f "$tmp"; return 1; }
+    mv -f "$tmp" "$LAST_STATE"
+    return 0
+}
+
+cache_value() {
+    local key="$1"
+    [ -f "$LAST_STATE" ] || return 0
+    sed -n "s/^${key}=//p" "$LAST_STATE" | tail -n 1
+}
+
+cache_is_fresh_idle() {
+    local print epoch now
+    print=$(cache_value print)
+    epoch=$(cache_value epoch)
+    now=$(date +%s)
+    case "$print" in
+        printing|paused)
+            log "last known .220 print state is $print; refusing switch"
+            return 1
+            ;;
+        standby|complete|cancelled) ;;
+        *)
+            log "no fresh idle .220 print state; refusing switch"
+            return 1
+            ;;
+    esac
+    case "$epoch" in
+        ''|*[!0-9]*)
+            log "no .220 state timestamp; refusing switch"
+            return 1
+            ;;
+    esac
+    if [ $((now - epoch)) -gt 120 ]; then
+        log "last known .220 state is stale; refusing switch"
+        return 1
+    fi
+    return 0
+}
+
+apply_camera() {
+    local profile="$1"
+    if /usr/local/sbin/q2-camera "$profile"; then
+        log "camera profile $profile active"
+    else
+        log "camera profile $profile failed"
+    fi
+}
+
+prepare_offload() {
+    stop_helix
+    stop_local
+    stop_proxies
+    sleep 2
+    set_helix_host "$OFFLOAD_HOST" || true
+    # Local start-up resets the MCU USB endpoints through this helper.  Offload
+    # needs the same reset: the mainboard can otherwise enumerate but never
+    # answer identify ("mcu 'mcu': Unable to connect").
+    /usr/local/sbin/q2-reset-mcus || log "MCU USB reset failed"
+    systemctl reset-failed q2-serial-proxy@main q2-serial-proxy@thr q2-serial-proxy@mmu 2>/dev/null || true
+    if start_proxies; then
+        log "serial proxies started"
+        return 0
+    fi
+    log "serial proxy start failed"
+    return 1
+}
+
+finish_offload() {
+    write_state offload "$OFFLOAD_HOST"
+    write_offload_cache >/dev/null 2>&1 || true
+    apply_camera offload
+    systemctl --no-block start helixscreen 2>/dev/null || true
+}
+
+apply_local() {
+    log "applying local mode"
+    stop_helix
+    stop_proxies
+    stop_local
+    set_helix_host "127.0.0.1" || true
+    apply_camera local
+    systemctl start q2-local-klipper 2>/dev/null || log "local Klipper start failed"
+    systemctl start q2-local-moonraker 2>/dev/null || log "local Moonraker start failed"
+    log "local Moonraker starting; not waiting for it at boot"
+    write_state local "127.0.0.1"
+    systemctl --no-block start helixscreen 2>/dev/null || true
+}
+
+offload_auto() {
+    if ! probe_offload_host; then
+        log ".220 Moonraker unreachable; selecting local"
+        apply_local
+        return
+    fi
+    log ".220 reachable; klippy=$OFFLOAD_KLIPPY print=$OFFLOAD_PRINT"
+    if ! prepare_offload; then
+        log "offload preparation failed; selecting local"
+        apply_local
+        return
+    fi
+    if [ "$OFFLOAD_BUSY" = 1 ]; then
+        log ".220 reports an active print; not restarting Klipper"
+        finish_offload
+        return
+    fi
+    if wait_ready 10; then
+        log ".220 Klipper ready after proxies; selecting offload"
+        finish_offload
+        return
+    fi
+    if ! wait_bridge_links 150; then
+        log "warning: not all .220 bridge links are established; restarting Klipper anyway"
+    fi
+    log ".220 Klipper not ready; restarting through Moonraker"
+    if restart_offload_klipper && wait_ready 60; then
+        log ".220 Klipper ready after restart; selecting offload"
+        finish_offload
+        return
+    fi
+    if wait_bridge_links 5; then
+        log ".220 still not ready; retrying Klipper restart now that all links are established"
+        if restart_offload_klipper && wait_ready 60; then
+            log ".220 Klipper ready after retry; selecting offload"
+            finish_offload
+            return
+        fi
+    fi
+    log ".220 did not become ready; selecting local"
+    apply_local
+}
+
+offload_forced() {
+    if probe_offload_host; then
+        log ".220 reachable; klippy=$OFFLOAD_KLIPPY print=$OFFLOAD_PRINT"
+    else
+        log ".220 Moonraker unreachable; forced offload will start proxies only"
+    fi
+    if ! prepare_offload; then
+        log "offload preparation failed"
+        finish_offload
+        return
+    fi
+    if [ "$OFFLOAD_BUSY" != 1 ]; then
+        if wait_ready 10; then
+            finish_offload
+            return
+        fi
+        if [ "$OFFLOAD_REACHABLE" = 1 ] && ! wait_bridge_links 150; then
+            log "warning: not all .220 bridge links are established; restarting Klipper anyway"
+        fi
+        if restart_offload_klipper; then
+            wait_ready 60 || true
+        fi
+        if [ "$OFFLOAD_REACHABLE" = 1 ] && [ "$(get_klippy_state)" != ready ] && wait_bridge_links 5; then
+            log ".220 still not ready; retrying Klipper restart now that all links are established"
+            if restart_offload_klipper; then
+                wait_ready 60 || true
+            fi
+        fi
+    fi
+    finish_offload
+}
+
+case "${1:-boot}" in
+    boot)
+        if [ "$(id -u)" -ne 0 ]; then
+            echo "q2-mode boot must run as root" >&2
+            exit 1
+        fi
+        case "$MODE" in
+            local)
+                log "configured mode: local (forced)"
+                apply_local
+                ;;
+            offload)
+                log "configured mode: offload (forced)"
+                offload_forced
+                ;;
+            auto)
+                log "configured mode: auto"
+                offload_auto
+                ;;
+        esac
+        ;;
+    failover)
+        if [ "$(id -u)" -ne 0 ]; then
+            echo "q2-mode failover must run as root" >&2
+            exit 1
+        fi
+        if [ "$MODE" != auto ]; then
+            log "failover ignored: configured MODE=$MODE"
+            exit 0
+        fi
+        selected=$(sed -n 's/^selected_mode=//p' "$STATE" 2>/dev/null | tail -n 1)
+        if [ "$selected" != offload ]; then
+            log "failover ignored: selected mode is ${selected:-unknown}"
+            exit 0
+        fi
+        if probe_once; then
+            if [ "$OFFLOAD_BUSY" = 1 ]; then
+                log "failover refused: .220 is reachable and reports $OFFLOAD_PRINT"
+                exit 1
+            fi
+            log "failover aborted: .220 Moonraker is reachable"
+            exit 0
+        fi
+        if ! cache_is_fresh_idle; then
+            exit 1
+        fi
+        if systemctl is-active --quiet q2-local-klipper; then
+            log "failover refused: local Klipper is already active"
+            exit 1
+        fi
+        log "runtime failover: .220 unreachable and last known state was idle"
+        apply_local
+        ;;
+    detect)
+        if probe_offload_host; then
+            echo "offload (moonraker=reachable klippy=$OFFLOAD_KLIPPY print=$OFFLOAD_PRINT)"
+        else
+            echo "local (moonraker=unreachable)"
+        fi
+        ;;
+    status)
+        echo "configured_mode=$MODE"
+        if [ -f "$STATE" ]; then
+            grep -v '^configured_mode=' "$STATE" || true
+        else
+            echo "selected_mode=not-applied"
+        fi
+        if probe_once; then
+            echo "offload_probe=reachable"
+            echo "klippy_state=$OFFLOAD_KLIPPY"
+            echo "print_state=$OFFLOAD_PRINT"
+        else
+            echo "offload_probe=unreachable"
+        fi
+        ;;
+    set)
+        if [ "$(id -u)" -ne 0 ]; then
+            echo "run 'sudo q2-mode set <auto|offload|local>'" >&2
+            exit 1
+        fi
+        new_mode="${2:-}"
+        case "$new_mode" in
+            auto|offload|local) ;;
+            *) echo "usage: q2-mode set <auto|offload|local>" >&2; exit 2 ;;
+        esac
+        if [ ! -f "$CONF" ]; then
+            cat > "$CONF" <<EOF
+MODE=$new_mode
+OFFLOAD_HOST=$OFFLOAD_HOST
+OFFLOAD_PORT=$OFFLOAD_PORT
+PROBE_ATTEMPTS=$PROBE_ATTEMPTS
+PROBE_DELAY=$PROBE_DELAY
+EOF
+            chmod 644 "$CONF"
+        elif grep -q '^MODE=' "$CONF"; then
+            sed -i "s/^MODE=.*/MODE=$new_mode/" "$CONF"
+        else
+            printf 'MODE=%s\n' "$new_mode" >> "$CONF"
+        fi
+        echo "configured MODE=$new_mode for the next boot"
+        ;;
+    show|help|-h|--help)
+        cat <<'EOF'
+Usage:
+  q2-mode detect          Probe .220 and print the boot-time choice
+  q2-mode status          Show configured/selected mode and current state
+  sudo q2-mode set MODE   Set auto|offload|local for the next boot
+  sudo q2-mode boot       Apply the configured mode once (boot service)
+  sudo q2-mode failover   Runtime .220 loss check used by the watchdog
+EOF
+        ;;
+    *)
+        echo "unknown command: $1" >&2
+        exit 2
+        ;;
+esac

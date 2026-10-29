@@ -1,0 +1,28 @@
+# Klipper host side: one local pty per MCU, bridged to the printer board's serial proxy.
+# Instance = main:7001 | thr:7002 | mmu:7003 -> @HOME@/printer_data/comms/q2-<name>
+# Klipper cannot open a TCP socket itself, so it talks to this pty.
+#
+# Optional offload fix. Unlike the socat unit, q2-pty-bridge.py creates the pty
+# once and keeps it open while the TCP side reconnects, so a printer reboot or
+# proxy restart does not pull the serial device out from under Klipper.
+[Unit]
+Description=Q2 MCU serial bridge (%i)
+After=network-online.target
+Wants=network-online.target
+# Keep retrying while the other side is down (printer off, rebooting): the default
+# start limit gives up after 5 failures in 10 s and leaves the link dead.
+StartLimitIntervalSec=0
+Before=klipper.service
+
+[Service]
+User=@USER@
+Environment=PYTHONUNBUFFERED=1
+Environment=Q2_BRIDGE_HOST=@PRINTER_IP@
+Environment=Q2_BRIDGE_DIR=@HOME@/printer_data/comms
+ExecStart=/usr/bin/python3 /usr/local/sbin/q2-pty-bridge.py %i
+Restart=always
+RestartSec=1
+Nice=-10
+
+[Install]
+WantedBy=multi-user.target

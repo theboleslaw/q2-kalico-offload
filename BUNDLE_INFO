@@ -1,0 +1,6 @@
+BUNDLE_NAME="Q2-Mainline-Klipper Q2 Klipper bundle"
+# Pinned to the upstream release installed on the live reference host.
+Q2_UPSTREAM_COMMIT=b5c8107ce8281205e2f6e621132e0a723709b3dd
+Q2_UPSTREAM_TAG=v2026.10.21-beta.1
+FIRMWARE_ID=ee2c6fb6b-8c0b4bda
+DEPLOYER_BUILD=build-4d40dca6b5ebdbd3e11b06782e2a48ead9b6e1fc
