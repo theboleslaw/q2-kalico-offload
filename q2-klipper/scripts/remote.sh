@@ -138,8 +138,10 @@ printer_firmware_id() { pssh "cat ${PRINTER_WORK}/firmware-id 2>/dev/null" || tr
 
 # True once the Katapult bootloader was installed by an earlier conversion (the marker is
 # written after the deployers; firmware-id covers printers converted before the marker).
+# Also true when an MCU is already running Klipper firmware: that can only happen after
+# Katapult was installed and used to flash, so the deployers must not be re-run.
 printer_katapult_installed() {
-    pssh "test -e ${PRINTER_WORK}/katapult-installed || test -s ${PRINTER_WORK}/firmware-id"
+    pssh "test -e ${PRINTER_WORK}/katapult-installed || test -s ${PRINTER_WORK}/firmware-id || ls /dev/serial/by-id/usb-Klipper_stm32f407xx_*-if00 /dev/serial/by-id/usb-Klipper_stm32f401xc_*-if00 >/dev/null 2>&1"
 }
 
 printer_proxies() {
