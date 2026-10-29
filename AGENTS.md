@@ -6,6 +6,7 @@
   - main: `stm32f407xx` GD32F425 200 MHz, offset `0x8008000`, file `q2-main.bin`
   - thr:  `stm32f103xe` GD32F303 120 MHz, offset `0x8002000`, UART `/dev/ttyS4` @ 500000, file `q2-thr.bin`
   - box:  `stm32f401xc` 84 MHz, offset `0x8004000`, file `q2-box.bin`
+- **Never commit or push without explicit user permission.** Always confirm before `git commit`/`git push`.
 - Keep Katapult deployers pinned (`DEPLOYER_*` in VERSIONS) — bad ones brick MCUs.
 
 ## What this is

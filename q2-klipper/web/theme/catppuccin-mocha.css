@@ -1898,3 +1898,9 @@ form > div > div.v-input__append-outer > div > button.mb-n3.v-btn.v-btn--icon.v-
   height: 40px !important;
   display: inline-block !important;
 }
+/* ===== Custom: Humidity label in Mainsail dashboard ===== */
+html body .v-application tr:has(td.current small) td.name span::after {
+    content: "Humidity 🌢";
+    display: block;
+    font-size: 15px;
+}
