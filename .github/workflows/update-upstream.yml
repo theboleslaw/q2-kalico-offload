@@ -24,4 +24,3 @@ jobs:
           git config user.email "q2-klipper-bot@users.noreply.github.com"
           q2-klipper/scripts/update-upstream.sh --push
 
-# registration trigger
