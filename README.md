@@ -156,8 +156,9 @@ The bundle ships the HelixScreen integration macros (`helix_macros.cfg`, include
 HelixScreen app itself is installed separately on the printer's touchscreen:
 
 ```bash
-# on the printer SBC / touchscreen (example for a K1-class device)
-curl -fsSL https://github.com/prestonbrown/helixscreen/releases/latest/download/install.sh | bash
+# on the printer (Q2 board), as your normal user
+curl -sSL https://releases.helixscreen.org/install.sh | sh
+# The installer detects the QIDI Q2 and installs the aarch64 "pi" build automatically.
 # then copy the template over your settings:
 cp q2-klipper/config/helixscreen/settings.json ~/printer_data/config/helixscreen/settings.json
 ```
