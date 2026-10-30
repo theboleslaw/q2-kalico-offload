@@ -103,6 +103,9 @@ if [ -e "${ROOT}/klipper" ]; then
     mv "${ROOT}/klipper" "${ROOT}/klipper.pre-kalico-${TS}"
 fi
 mv "${STAGE}/klipper" "${ROOT}/klipper"
+# The offload host's tree may carry a c_helper.so built for its CPU (x86_64).
+# Remove it so get_ffi() compiles a native one for this printer.
+rm -f "${ROOT}/klipper/klippy/chelper/c_helper.so"
 ok "Kalico installed in ${ROOT}/klipper"
 
 # ---------------------------------------------------------------- Happy Hare
@@ -245,15 +248,15 @@ python3 -m venv "${ROOT}/klippy-env"
 "${ROOT}/klippy-env/bin/pip" install -q --upgrade pip
 "${ROOT}/klippy-env/bin/pip" install -q \
     -r "${ROOT}/klipper/scripts/klippy-requirements.txt" numpy scipy
-"${ROOT}/klippy-env/bin/python" -c \
-    "import sys; sys.path.insert(0, '${ROOT}/klipper/klippy'); import chelper; chelper.get_ffi()" \
-    || die "chelper build failed"
 if [ -f "${HOME}/klippain_shaketune/requirements.txt" ]; then
     info "Installing ShakeTune Python requirements"
     "${ROOT}/klippy-env/bin/pip" install -q \
         -r "${HOME}/klippain_shaketune/requirements.txt" \
         || warn "ShakeTune requirements failed to install; [shaketune] may not load"
 fi
+"${ROOT}/klippy-env/bin/python" -c \
+    "import sys; sys.path.insert(0, '${ROOT}/klipper/klippy'); import chelper; chelper.get_ffi()" \
+    || die "chelper build failed"
 ok "venv ready"
 
 # ---------------------------------------------------------------- Local service
