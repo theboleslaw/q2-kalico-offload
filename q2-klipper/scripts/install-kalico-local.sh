@@ -19,15 +19,22 @@ info() { printf '==> %s\n' "$*"; }
 ok()   { printf ' ok  %s\n' "$*"; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-command -v rsync >/dev/null || die "rsync is required (apt-get install rsync)"
+# rsync is preferred but not always installed; fall back to tar over ssh.
 command -v python3 >/dev/null || die "python3 is required"
 [ "$(id -u)" != 0 ] || die "run as your normal user (mks), not root"
 
 info "Copying Kalico source from $USER_REMOTE@$HOST (version must match)..."
 mkdir -p "$KALICO_SRC"
-rsync -avz --delete --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' \
-    "$USER_REMOTE@$HOST:/home/$USER_REMOTE/klipper/" "$KALICO_SRC/" \
-    || die "rsync of Kalico source failed (check SSH access to $HOST)"
+# Prefer rsync; fall back to tar over ssh if rsync is missing on either side.
+if command -v rsync >/dev/null && ssh -o BatchMode=yes "$USER_REMOTE@$HOST" 'command -v rsync' >/dev/null 2>&1; then
+    rsync -avz --delete --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' \
+        "$USER_REMOTE@$HOST:/home/$USER_REMOTE/klipper/" "$KALICO_SRC/" \
+        || die "rsync of Kalico source failed (check SSH access to $HOST)"
+else
+    ssh "$USER_REMOTE@$HOST" 'cd /home/'"$USER_REMOTE"'/klipper && tar czf - --exclude=.git --exclude="*.pyc" --exclude=__pycache__ .' \
+        | tar xzf - -C "$KALICO_SRC" \
+        || die "tar/ssh transfer of Kalico source failed (check SSH access to $HOST)"
+fi
 
 # Verify it's actually Kalico
 grep -q 'Kalico' "$KALICO_SRC/pyproject.toml" 2>/dev/null \
@@ -36,8 +43,13 @@ ok "Kalico source copied ($(git -C "$KALICO_SRC" describe --tags --always 2>/dev
 
 info "Copying printer.cfg from offload host..."
 mkdir -p "$CFG"
-rsync -avz "$USER_REMOTE@$HOST:/home/$USER_REMOTE/printer_data/config/printer.cfg" "$CFG/printer.cfg" \
-    || die "rsync of printer.cfg failed"
+if command -v rsync >/dev/null && ssh -o BatchMode=yes "$USER_REMOTE@$HOST" 'command -v rsync' >/dev/null 2>&1; then
+    rsync -avz "$USER_REMOTE@$HOST:/home/$USER_REMOTE/printer_data/config/printer.cfg" "$CFG/printer.cfg" \
+        || die "rsync of printer.cfg failed"
+else
+    ssh "$USER_REMOTE@$HOST" 'cat /home/'"$USER_REMOTE"'/printer_data/config/printer.cfg' > "$CFG/printer.cfg" \
+        || die "transfer of printer.cfg failed"
+fi
 # Fix serial path for local mode (offload uses the proxy, local uses ttyS4)
 sed -i 's|@HOME@/printer_data/comms/q2-thr|/dev/ttyS4|' "$CFG/printer.cfg"
 # Fix other @HOME@ paths
