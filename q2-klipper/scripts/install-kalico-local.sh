@@ -78,12 +78,12 @@ info "Copying Kalico, Happy Hare and config from ${REMOTE_USER}@${HOST} ..."
 # One ssh connection, one tar stream.  No rsync is needed on either side.
 # Happy Hare, ShakeTune and moonraker-timelapse are optional; include them when
 # present so the local config's [mmu], [shaketune] and [timelapse] still load.
-ITEMS="klipper"
+ITEMS="klipper moonraker"
 [ "$SYNC_CONFIG" = 1 ] && ITEMS="$ITEMS printer_data/config"
 if ! ssh "${REMOTE_USER}@${HOST}" "
         cd '${REMOTE_HOME}' || exit 1
         items='${ITEMS}'
-        for d in Happy-Hare klippain_shaketune moonraker-timelapse; do
+        for d in Happy-Hare klippain_shaketune moonraker-timelapse mainsail-config; do
             [ -d \"\$d\" ] && items=\"\$items \$d\"
         done
         tar czf - --exclude=.git --exclude='*.pyc' --exclude=__pycache__ --exclude=out \$items
@@ -143,6 +143,16 @@ if [ -d "${STAGE}/moonraker-timelapse" ]; then
             "${ROOT}/moonraker/moonraker/components/timelapse.py"
     fi
     ok "moonraker-timelapse installed"
+fi
+
+# Mainsail's macro file is referenced by the local printer.cfg as a symlink.
+if [ -d "${STAGE}/mainsail-config" ]; then
+    if [ -e "${ROOT}/mainsail-config" ]; then
+        info "Backing up existing mainsail-config -> mainsail-config.pre-kalico-${TS}"
+        mv "${ROOT}/mainsail-config" "${ROOT}/mainsail-config.pre-kalico-${TS}"
+    fi
+    mv "${STAGE}/mainsail-config" "${ROOT}/mainsail-config"
+    ok "Mainsail macros installed in ${ROOT}/mainsail-config"
 fi
 
 # Happy Hare v4 links every module into klipper/moonraker.  The copied links
@@ -223,6 +233,9 @@ if [ -f "${CFG_DIR}/printer.cfg" ]; then
         done < <(sed -n 's/^\[include \(.*\)\]$/\1/p' printer.cfg)
     )
 fi
+if [ -L "${CFG_DIR}/mainsail.cfg" ] && [ ! -e "${CFG_DIR}/mainsail.cfg" ]; then
+    warn "printer.cfg include mainsail.cfg is a broken symlink: $(readlink "${CFG_DIR}/mainsail.cfg")"
+fi
 if [ -f "${CFG_DIR}/printer.cfg" ] && grep -q '^\[shaketune\]' "${CFG_DIR}/printer.cfg"; then
     [ -e "${ROOT}/klipper/klippy/extras/shaketune" ] \
         || warn "config has [shaketune] but the module is missing"
@@ -259,6 +272,23 @@ fi
     || die "chelper build failed"
 ok "venv ready"
 
+# ---------------------------------------------------------------- Moonraker venv
+if [ -d "${ROOT}/moonraker" ]; then
+    if [ ! -x "${ROOT}/moonraker-env/bin/python" ]; then
+        info "Creating Moonraker venv for $(uname -m) ..."
+        python3 -m venv "${ROOT}/moonraker-env"
+        "${ROOT}/moonraker-env/bin/pip" install -q --upgrade pip
+        if [ -f "${ROOT}/moonraker/scripts/moonraker-requirements.txt" ]; then
+            ( cd "${ROOT}/moonraker/scripts" && \
+                "${ROOT}/moonraker-env/bin/pip" install -q -r moonraker-requirements.txt ) \
+                || warn "Moonraker requirements failed; local Moonraker may not start"
+        fi
+        ok "Moonraker venv ready"
+    else
+        ok "Moonraker venv already present"
+    fi
+fi
+
 # ---------------------------------------------------------------- Local service
 UNIT=/etc/systemd/system/q2-local-klipper.service
 if [ -f "$UNIT" ]; then
@@ -283,6 +313,26 @@ if [ -f "$UNIT" ]; then
     fi
 else
     warn "q2-local-klipper.service not found; q2-mode local mode will not use this install"
+fi
+
+if [ -f /etc/systemd/system/q2-local-moonraker.service ]; then
+    changed=0
+    if ! grep -q "WorkingDirectory=${ROOT}/moonraker" /etc/systemd/system/q2-local-moonraker.service; then
+        sudo sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${ROOT}/moonraker|" \
+            /etc/systemd/system/q2-local-moonraker.service
+        changed=1
+    fi
+    if ! grep -q "${ROOT}/moonraker-env/bin/python" /etc/systemd/system/q2-local-moonraker.service; then
+        sudo sed -i "s|^ExecStart=[^ ]*/python |ExecStart=${ROOT}/moonraker-env/bin/python |" \
+            /etc/systemd/system/q2-local-moonraker.service
+        changed=1
+    fi
+    if [ "$changed" = 1 ]; then
+        sudo systemctl daemon-reload
+        ok "q2-local-moonraker.service updated"
+    else
+        ok "q2-local-moonraker.service already points at ${ROOT}"
+    fi
 fi
 
 if systemctl is-enabled --quiet klipper 2>/dev/null; then
