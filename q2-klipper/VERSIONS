@@ -43,8 +43,8 @@ SPOOLMAN_VERSION=v0.27.0
 # HelixScreen (printer touchscreen UI). Installed on the printer, not the host;
 # the macros in config/klipper/helix_macros.cfg integrate with it.
 HELIXSCREEN_REPO=https://github.com/prestonbrown/helixscreen.git
-HELIXSCREEN_RELEASE=v1.0.8
-HELIXSCREEN_REF=0098c829c6b0e2eda99caf1a31f1b0b12cf3589e
+HELIXSCREEN_RELEASE=v1.0.9
+HELIXSCREEN_REF=d585278b7cfbb640c4b88cd774e71a2c0de37a82
 
 # First-time Katapult install without an ST-Link (n3oney/qidi-q2-klipper deployers,
 # flashed through Qidi's own update scripts). Pinned on purpose: never auto-bumped.
